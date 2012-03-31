@@ -1,4 +1,4 @@
-$(document).ready ->
+runFormValidation = () ->
   ###
   RegEx
   ###
@@ -6,6 +6,7 @@ $(document).ready ->
   emptyRegEx = new RegExp("[-_.a-zA-Z0-9]{3,}")
   numberRegEx = new RegExp("^[0-9]{3,}$")
   postalCodeRegEx = new RegExp("^[A-Z]{1}[0-9]{1}[A-Z]{1} [0-9]{1}[A-Z]{1}[0-9]{1}") 
+  passwordRegEx = new RegExp("^(.+){6,}$")
 
   ###
   Arrays of inputs, by types
@@ -32,45 +33,49 @@ $(document).ready ->
       selects.push($(input))
     if $(input).hasClass("number")
       numbers.push($(input))
+    if $(input).hasClass("password")
+      passwords=$(input)
+    if $(input).hasClass("password_confirmation")
+      password_confirmations=$(input)
   
   ###
-  Inputs onblur validation
+  Inputs keyup validation
   ###
   for input in inputs
-    input.blur () ->
+    input.unbind("keyup").bind "keyup", -> #Have unbind as quick hack to keep from multiple bindings
       validateInputs($(this), emptyRegEx)
-  
   ###
-  Email onblur validation
+  Email keyup validation
   ###
   for email in emails
-    email.blur () ->
+    email.unbind("keyup").bind "keyup", ->
       validateInputs($(this), emailRegEx)
-
   ###
-  Postal Code onblur validation
+  Postal Code keyup validation
   ###
   for code in codes
-    code.blur () ->
+    code.unbind("keyup").bind "keyup", ->
       validateInputs($(this), postalCodeRegEx)
-
   ###
-  Selects onchange validation
-  ###
-  for select in selects
-    select.change () ->
-      validateSelect($(this))
-
-  ###
-  Numbers onblur validation
+  Numbers keyup validation
   ###
   for number in numbers
-    number.blur () ->
+    number.unbind("keyup").bind "keyup", ->
       validateInputs($(this), numberRegEx)
+  ###
+  Password(s) keyup validation
+  ###
+  password.unbind("keyup").bind "keyup", ->
+    validatePassword($(this), passwordRegEx)
+  ###
+  Password confirmation(s) keyup validation
+  ###
+  password_confirmation.unbind("keyup").bind "keyup", ->
+    validatePwdConf(password,$(this))
   
 
   validateForm = () ->
-    $.extend(badFields = [], validateInputs(inputs, emptyRegEx), validateInputs(emails, emailRegEx), validateInputs(codes, postalCodeRegEx), validateSelect(selects), validateInputs(numbers, numberRegEx), validateChoiceSelect(choices))
+    $.extend(badFields = [], validateInputs(inputs, emptyRegEx), validateInputs(emails, emailRegEx), validateInputs(codes, postalCodeRegEx), validateSelect(selects), validateInputs(numbers, numberRegEx), validateChoiceSelect(choices), validatePassword(password, passwordRegEx), validatePwdConf(password,password_confirmation))
     if badFields.length is 0
       valid = true
     else
@@ -81,7 +86,7 @@ $(document).ready ->
     error = []
     for input in inputs
       if regex.test($(input).val())
-        removeErrorStyle(input)
+        addSuccessStyle(input)
       else
         error.push($(input).attr("id"))
         addErrorStyle(input)
@@ -91,7 +96,7 @@ $(document).ready ->
     error = []
     for select in selects
       if $(select).val() isnt "0"
-        removeErrorStyle(select)
+        addSuccessStyle(select)
       else
         error.push($(select).attr("id"))
         addErrorStyle(select)
@@ -103,25 +108,49 @@ $(document).ready ->
       current = choice
       for verif in choices
         if($(current).attr("id") is $(verif).attr("id") or $(current).val() isnt $(verif).val())
+          addSuccessStyle($(choice))
         else
+          addErrorStyle($(choice))
           error.push($(current).attr("id"))
           $("#error-choice").html(errorMessages['choices'])
     if error.length is 0
       $("#error-choice").html("")
     return error
+
+  validatePassword = (password, passwordRegEx) ->
+    error=[]
+    if regex.test($(password).val())
+      addSuccessStyle(password)
+    else
+      error.push($(password).attr("id"))
+      addErrorStyle(password)
+    return error
+
+  validatePwdConf = (password, password_confirmation) ->
+    error=[]
+    if password.val() == password_confirmation.val()
+      addSuccessStyle(password_confirmation)
+    else
+      error.push($(password_confirmation).attr("id"))
+      addErrorStyle(password_confirmation)
+      $(password_confirmation).next().text("Passwords don't match") #Update Bootstrap's inline-help text
+    return error
   
   ###
-  Error Styling, I changed the border of the input and put an error message within a span in the label of the same input, it's opt to you.
+  Error Styling: sets class of parent .control-group to .success or .error for Twitter Bootstrap stylings
   ###
   addErrorStyle = (element) ->
-    $(element).addClass('form-error')
-    $(element).prev('label').find('.error-message').html(errorMessages[$(element).attr("id")])
+    $(element).parent().addClass('error')
+    $(element).parent().removeClass('success')
 
-  removeErrorStyle = (element) ->
-    $(element).removeClass('form-error')
-    $(element).prev('label').find('.error-message').html("")
+  addSuccessStyle = (element) ->
+    $(element).parent().addClass('success')
+    $(element).parent().removeClass('error')
 
   $('.validate-form').submit ->
     return validateForm()
-  
+
+$(document).ready ->
+  $(document).on "mousedown", -> #find and capture new forms if any exist after each mousedown
+    runFormValidation()
     
